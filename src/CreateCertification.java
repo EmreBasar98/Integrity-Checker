@@ -11,7 +11,6 @@ import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.security.spec.PKCS8EncodedKeySpec;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Scanner;
 
@@ -20,12 +19,12 @@ public class CreateCertification {
         String certificatePath = arguments.get("cert");
         String prikeyPath = arguments.get("private");
 
-        CertAndKeyGen certAndKeyGen = new CertAndKeyGen("RSA", "SHA256withRSA");
-        certAndKeyGen.generate(2048);
-//        KeyPair keyPair = new KeyPair(certAndKeyGen.getPublicKey(), certAndKeyGen.getPrivateKey());
-
-        store(certAndKeyGen, prikeyPath);
-        createAndStoreCertificate(certAndKeyGen, certificatePath);
+//        CertAndKeyGen certAndKeyGen = new CertAndKeyGen("RSA", "SHA256withRSA");
+//        certAndKeyGen.generate(2048);
+//
+//        createAndStore(certificatePath, prikeyPath);
+//        createAndStoreCertificate(certAndKeyGen, certificatePath);
+        createAndStore(certificatePath, prikeyPath);
 
     }
 
@@ -61,13 +60,13 @@ public class CreateCertification {
         return MessageDigest.getInstance("MD5").digest(paddedBitPW.getBytes());
     }
 
-    private void run(String command){
-        try{ sun.security.tools.keytool.Main.main(command.trim().split("\\s+")); }
-        catch (Exception e) { e.printStackTrace(); }
-    }
+    public void createAndStore(String certificatePath, String prikeyPath) throws IOException, NoSuchAlgorithmException, IllegalBlockSizeException, NoSuchPaddingException, BadPaddingException, InvalidKeyException, KeyStoreException, CertificateException, SignatureException, NoSuchProviderException {
 
-    public void store(CertAndKeyGen keyPair, String prikeyPath) throws IOException, NoSuchAlgorithmException, IllegalBlockSizeException, NoSuchPaddingException, BadPaddingException, InvalidKeyException {
-        createAndStorePrivKey(keyPair, prikeyPath);
+        CertAndKeyGen certAndKeyGen = new CertAndKeyGen("RSA", "SHA256withRSA");
+        certAndKeyGen.generate(2048);
+        createAndStorePrivKey(certAndKeyGen, prikeyPath);
+        generate(certAndKeyGen);
+        generateCertificate(certificatePath);
     }
 
     public void createAndStorePrivKey(CertAndKeyGen keyPair, String prikeyPath) throws NoSuchAlgorithmException, IllegalBlockSizeException, NoSuchPaddingException, BadPaddingException, InvalidKeyException, IOException {
@@ -75,23 +74,92 @@ public class CreateCertification {
 
         byte[] additional = "This is private key file".getBytes();
         byte[] privateKeyInfo = pkcs8EncodedKeySpec.getEncoded();
-        byte[] plaintext = new byte[additional.length+privateKeyInfo.length];
+        byte[] plaintext = new byte[additional.length + privateKeyInfo.length];
 
-        System.arraycopy(privateKeyInfo,0,plaintext,0,privateKeyInfo.length);
-        System.arraycopy(additional,0,plaintext,privateKeyInfo.length,additional.length);
+        System.arraycopy(privateKeyInfo, 0, plaintext, 0, privateKeyInfo.length);
+        System.arraycopy(additional, 0, plaintext, privateKeyInfo.length, additional.length);
 
         byte[] passBytes = prepareUserPassword();
 
         AES aes = new AES(passBytes);
 
         FileWriter prikeyFile = new FileWriter(prikeyPath);
-        prikeyFile.write(new String(aes.encrypt(plaintext))); prikeyFile.close();
+        prikeyFile.write(new String(aes.encrypt(plaintext)));
+        prikeyFile.close();
     }
 
-    public void createAndStoreCertificate(CertAndKeyGen keyPair, String certificatePath) throws IOException, CertificateException, SignatureException, NoSuchAlgorithmException, InvalidKeyException, NoSuchProviderException {
-        X509Certificate[] chain = new X509Certificate[1];
-        System.out.println(keyPair.getPrivateKey().getEncoded());
-        chain[0] = keyPair.getSelfCertificate(new X500Name("CN=EMRE"), (long) 365 * 24 * 3600);
-        System.out.println(chain[0].getSignature());
+    public void generate(CertAndKeyGen keypair)
+            throws KeyStoreException, IOException, NoSuchAlgorithmException,
+            CertificateException, NoSuchProviderException,
+            InvalidKeyException, SignatureException {
+
+//        int keySize = 2048;
+        char[] psw = "password".toCharArray();
+        OutputStream fout = null;
+
+        try {
+            fout = new java.io.FileOutputStream("keypair.p12");
+
+            // Create KeyStore
+            KeyStore keyStore = KeyStore.getInstance("PKCS12");
+            keyStore.load(null, psw);
+
+            // Create key
+            //CertAndKeyGen keypair = new CertAndKeyGen("RSA", "SHA1WithRSA");
+            X500Name x500Name = new X500Name("CN=EMRE");
+
+//            keypair.generate(keySize);
+            PrivateKey privateKey = keypair.getPrivateKey();
+            X509Certificate[] chain = new X509Certificate[1];
+            chain[0] = keypair.getSelfCertificate(x500Name, 35000 * 24L * 60L * 60L);
+
+            // save key
+            keyStore.setKeyEntry("keypair", privateKey, "password".toCharArray(), chain);
+
+            // store the keystore
+            keyStore.store(fout, psw);
+        } finally {
+            if (fout != null) {
+                fout.close();
+            }
+        }
+
+    }
+
+    private void execute(String command){
+        //Using keytool
+        try{ sun.security.tools.keytool.Main.main(command.trim().split("\\s+")); }
+        catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private void generateCertificate(String certificatePath) throws IOException {
+        //Generating a Certificate Signing Request
+        execute(" -certreq"              +
+                " -alias keypair"        +
+                " -dname CN=EMRE"        +
+                " -storetype PKCS12"     +
+                " -keypass password"     +
+                " -file request.csr"     +
+                " -storepass password"   +
+                " -keystore keypair.p12" +
+                " -sigalg SHA256withRSA" );
+
+        //Generating X.509 public certificate
+        execute(" -gencert"              +
+                " -rfc"                  +
+                " -validity 365"         +
+                " -dname CN=EMRE"        +
+                " -alias keypair"        +
+                " -keypass password"     +
+                " -storetype PKCS12"     +
+                " -infile request.csr"   +
+                " -storepass password"   +
+                " -keystore keypair.p12" +
+                " -sigalg SHA256withRSA" +
+                " -outfile " + certificatePath );
+
+        //Deleting keypair and request files, there are not needed anymore
+        Files.deleteIfExists(FileSystems.getDefault().getPath("keypair.p12"));
+        Files.deleteIfExists(FileSystems.getDefault().getPath("request.csr"));
     }
 }
