@@ -11,6 +11,7 @@ import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Scanner;
 
@@ -18,12 +19,6 @@ public class CreateCertification {
     public CreateCertification(HashMap<String, String> arguments) throws NoSuchAlgorithmException, UnrecoverableKeyException, CertificateException, IOException, KeyStoreException, InvalidKeyException, IllegalBlockSizeException, NoSuchPaddingException, BadPaddingException, SignatureException, NoSuchProviderException {
         String certificatePath = arguments.get("cert");
         String prikeyPath = arguments.get("private");
-
-//        CertAndKeyGen certAndKeyGen = new CertAndKeyGen("RSA", "SHA256withRSA");
-//        certAndKeyGen.generate(2048);
-//
-//        createAndStore(certificatePath, prikeyPath);
-//        createAndStoreCertificate(certAndKeyGen, certificatePath);
         createAndStore(certificatePath, prikeyPath);
 
     }
@@ -93,30 +88,25 @@ public class CreateCertification {
             CertificateException, NoSuchProviderException,
             InvalidKeyException, SignatureException {
 
-//        int keySize = 2048;
+
         char[] psw = "password".toCharArray();
         OutputStream fout = null;
 
         try {
             fout = new java.io.FileOutputStream("keypair.p12");
 
-            // Create KeyStore
             KeyStore keyStore = KeyStore.getInstance("PKCS12");
             keyStore.load(null, psw);
 
-            // Create key
-            //CertAndKeyGen keypair = new CertAndKeyGen("RSA", "SHA1WithRSA");
             X500Name x500Name = new X500Name("CN=EMRE");
 
-//            keypair.generate(keySize);
             PrivateKey privateKey = keypair.getPrivateKey();
+            System.out.println(Arrays.toString(privateKey.getEncoded()));
             X509Certificate[] chain = new X509Certificate[1];
             chain[0] = keypair.getSelfCertificate(x500Name, 35000 * 24L * 60L * 60L);
 
-            // save key
             keyStore.setKeyEntry("keypair", privateKey, "password".toCharArray(), chain);
 
-            // store the keystore
             keyStore.store(fout, psw);
         } finally {
             if (fout != null) {
@@ -126,37 +116,40 @@ public class CreateCertification {
 
     }
 
-    private void execute(String command){
+    private void execute(String command) {
         //Using keytool
-        try{ sun.security.tools.keytool.Main.main(command.trim().split("\\s+")); }
-        catch (Exception e) { e.printStackTrace(); }
+        try {
+            sun.security.tools.keytool.Main.main(command.trim().split("\\s+"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void generateCertificate(String certificatePath) throws IOException {
         //Generating a Certificate Signing Request
-        execute(" -certreq"              +
-                " -alias keypair"        +
-                " -dname CN=EMRE"        +
-                " -storetype PKCS12"     +
-                " -keypass password"     +
-                " -file request.csr"     +
-                " -storepass password"   +
+        execute(" -certreq" +
+                " -alias keypair" +
+                " -dname CN=EMRE" +
+                " -storetype PKCS12" +
+                " -keypass password" +
+                " -file request.csr" +
+                " -storepass password" +
                 " -keystore keypair.p12" +
-                " -sigalg SHA256withRSA" );
+                " -sigalg SHA256withRSA");
 
         //Generating X.509 public certificate
-        execute(" -gencert"              +
-                " -rfc"                  +
-                " -validity 365"         +
-                " -dname CN=EMRE"        +
-                " -alias keypair"        +
-                " -keypass password"     +
-                " -storetype PKCS12"     +
-                " -infile request.csr"   +
-                " -storepass password"   +
+        execute(" -gencert" +
+                " -rfc" +
+                " -validity 365" +
+                " -dname CN=EMRE" +
+                " -alias keypair" +
+                " -keypass password" +
+                " -storetype PKCS12" +
+                " -infile request.csr" +
+                " -storepass password" +
                 " -keystore keypair.p12" +
                 " -sigalg SHA256withRSA" +
-                " -outfile " + certificatePath );
+                " -outfile " + certificatePath);
 
         //Deleting keypair and request files, there are not needed anymore
         Files.deleteIfExists(FileSystems.getDefault().getPath("keypair.p12"));
