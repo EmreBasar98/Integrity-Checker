@@ -9,10 +9,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.text.SimpleDateFormat;
 import java.util.*;
+import java.sql.Timestamp;
 
 public class CreateRegistry {
-    public CreateRegistry(HashMap<String, String> arguments) throws NoSuchAlgorithmException, IOException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidKeySpecException {
+    public CreateRegistry(HashMap<String, String> arguments) throws NoSuchAlgorithmException, IOException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidKeySpecException, SignatureException {
 
         String regFilePath = arguments.get("registry");
         String path = arguments.get("path");
@@ -21,50 +23,42 @@ public class CreateRegistry {
         String priKey = arguments.get("private");
 
         byte[] plaintext = decryptPrivateKey(priKey);
-
-//        String plaintextAsString = new String(plaintext, StandardCharsets.UTF_8);
-//
-//        System.out.println(plaintextAsString.contains("This is private key file"));
-//
-//        plaintextAsString = plaintextAsString.replace("This is private key file", "");
-//        byte[] privKey = plaintextAsString.getBytes(StandardCharsets.UTF_8);
-//
-//        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-//        PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privKey);
-//
-//        PrivateKey privateKey = keyFactory.generatePrivate(privateKeySpec);
-//
-//        System.out.println(privateKey.getEncoded());
-        byte[] additional = "This is private key file".getBytes();
-        int prikeyinfoend = plaintext.length - additional.length;
-
-        byte[] privateKeyInfo = new byte[prikeyinfoend];
-        byte[] additionalCheck = new byte[additional.length];
-
-        System.arraycopy(plaintext,0,privateKeyInfo,0,prikeyinfoend);
-        System.arraycopy(plaintext,prikeyinfoend,additionalCheck,0,additional.length);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyInfo);
-
-        PrivateKey privateKey = keyFactory.generatePrivate(privateKeySpec);
-        System.out.println(Arrays.toString(privateKey.getEncoded()));
+        PrivateKey privateKey = getPrivateKey(plaintext);
+        createRegFile(regFilePath, path, hash, privateKey, logFile);
     }
 
-    public void createRegFile(String regFilePath, String path, String hash) throws IOException, NoSuchAlgorithmException {
+    public void createRegFile(String regFilePath, String path, String hash, PrivateKey privateKey, String logFilePath) throws IOException, NoSuchAlgorithmException, SignatureException, InvalidKeyException {
+        SimpleDateFormat sdf1 = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+
+
+        FileWriter logFile = new FileWriter(logFilePath);
         FileWriter regFile = new FileWriter(regFilePath);
-        File folder = new File(path);
         StringBuilder regFileContent = new StringBuilder();
+        logFile.write(sdf1.format(timestamp)+": Registry file is created at "+ path +"!\n");
+        File folder = new File(path);
+
+        int fileCounter = 0;
         for (File fileEntry : Objects.requireNonNull(folder.listFiles())) {
             Scanner myReader = new Scanner(fileEntry);
             String myContent = myReader.nextLine();//Gerekirse Path klasörü otomatik oluşturulacak ve dosya içerikleri for ile okunacak
-
             byte[] myHashedContent = MessageDigest.getInstance(hash).digest(myContent.getBytes());
-            regFileContent.append(fileEntry.getPath() + " " + myHashedContent);
-            regFile.write(fileEntry.getPath() + " " + myHashedContent+"\n");
+
+            String fileInfo = fileEntry.getPath() + " " + myHashedContent;
+
+            regFileContent.append(fileInfo);
+            regFile.write(fileEntry.getPath() + " " + myHashedContent + "\n");
+
+            logFile.write(sdf1.format(timestamp)+": "+ fileEntry.getPath() +" is added to registry\n");
+            fileCounter+=1;
         }
-        byte[] regFileSignature = MessageDigest.getInstance(hash).digest(String.valueOf(regFileContent).getBytes());
-        regFile.write(String.valueOf(regFileSignature));
+        String regFileSignature = signature(regFileContent, hash, privateKey);
+        regFileContent.append(regFileSignature);
+        regFile.write(regFileSignature);
+
+        logFile.write(sdf1.format(timestamp)+": "+fileCounter+ " files are added to the registry and registry creation is finished!\n");
         regFile.close();
+        logFile.close();
     }
 
     public byte[] prepareUserPassword() throws NoSuchAlgorithmException {
@@ -109,16 +103,27 @@ public class CreateRegistry {
         return plaintext;
     }
 
-//    private String signature(StringBuilder registryContent, String hashType)
-//            throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, SignatureException {
-//        //Specifying hash type
-//        String hash = hashType.equals("SHA-256")?"SHA256":"MD5";
-//
-//        //Generating signature with the private key
-//        Signature signature = Signature.getInstance(hash+"withRSA");
-//        signature.initSign();
-//        signature.update(registryContent.toString().getBytes());
-//
-//        return Base64.getEncoder().encodeToString(signature.sign());
-//    }
+    public PrivateKey getPrivateKey(byte[] plaintext) throws NoSuchAlgorithmException, InvalidKeySpecException {
+        byte[] additional = "This is private key file".getBytes();
+        int privKeyLen = plaintext.length - additional.length;
+        byte[] privateKeyInfo = Arrays.copyOfRange(plaintext, 0, privKeyLen);
+
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyInfo);
+
+        return keyFactory.generatePrivate(privateKeySpec);
+    }
+
+    private String signature(StringBuilder registryContent, String hashType, PrivateKey privateKey)
+            throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, SignatureException {
+        //Specifying hash type
+        String hash = hashType.equals("SHA-256") ? "SHA256" : "MD5";
+
+        //Generating signature with the private key
+        Signature signature = Signature.getInstance(hash + "withRSA");
+        signature.initSign(privateKey);
+        signature.update(registryContent.toString().getBytes());
+
+        return Base64.getEncoder().encodeToString(signature.sign());
+    }
 }
