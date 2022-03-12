@@ -32,46 +32,48 @@ public class CheckIntegrity {
             System.out.println("[time_stamp]: Registry file verification failed!");
             System.exit(1);
         }
-//        public static boolean equals(byte[] a, byte[] a2)
+
         File folder = new File(path);
-        HashMap<String, byte[]> fileBytes = new HashMap<>();
+        HashMap<String, String> systemFiles = new HashMap<>();
         for (File fileEntry : Objects.requireNonNull(folder.listFiles())) {
             Scanner myReader = new Scanner(fileEntry);
             String myContent = myReader.nextLine();
-            System.out.println(hashType);
-            MessageDigest md = MessageDigest.getInstance(hashType);
-            System.out.println(md.hashCode());
-            byte[] myHashedContent = md.digest(myContent.getBytes(StandardCharsets.UTF_8));
-
-            fileBytes.put(fileEntry.getName(), myHashedContent);
+            String myHashedContent = Base64.getEncoder().encodeToString(MessageDigest.getInstance(hashType).digest(myContent.getBytes(StandardCharsets.UTF_8)));
+            systemFiles.put(fileEntry.getName(), myHashedContent);
         }
-
 
         String filePath;
         String contentHash;
         String[] lineSplitted;
         String[] pathSplitted;
         String fileName;
-        HashMap<String, String> regFileBytes = new HashMap<>();
+        HashMap<String, String> regFiles = new HashMap<>();
         for (String l: fileContents) {
             lineSplitted = l.split(" ");
             filePath = lineSplitted[0];
             contentHash = lineSplitted[1];
             pathSplitted = filePath.split(Pattern.quote(File.separator));
             fileName = pathSplitted[pathSplitted.length - 1];
-
-            regFileBytes.put(fileName, contentHash);
+            regFiles.put(fileName, contentHash);
         }
 
-
-        for (String key: fileBytes.keySet()) {
-            System.out.println(key + " "+ fileBytes.get(key));
+        for (String key: systemFiles.keySet()) {
+            if (!regFiles.containsKey(key)) {
+                System.out.println("yeni key"+ key);
+            }
+            else {
+                if(!regFiles.get(key).equals(systemFiles.get(key))){
+                    System.out.println("altered"+ key);
+                }
+            }
         }
 
-        System.out.println("-----------------------");
-        for (String key: regFileBytes.keySet()) {
-            System.out.println(key + " "+ regFileBytes.get(key));
+        for (String key: regFiles.keySet()) {
+            if (!systemFiles.containsKey(key)) {
+                System.out.println("silinmiş key"+ key);
+            }
         }
+
     }
 
 
