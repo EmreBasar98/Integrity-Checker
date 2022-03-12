@@ -41,7 +41,11 @@ public class CreateRegistry {
         for (File fileEntry : Objects.requireNonNull(folder.listFiles())) {
             Scanner myReader = new Scanner(fileEntry);
             String myContent = myReader.nextLine();//Gerekirse Path klasörü otomatik oluşturulacak ve dosya içerikleri for ile okunacak
-            byte[] myHashedContent = MessageDigest.getInstance(hash).digest(myContent.getBytes());
+            System.out.println(Arrays.toString(myContent.getBytes(StandardCharsets.UTF_8)));
+            System.out.println(hash);
+            MessageDigest md = MessageDigest.getInstance(hash);
+            System.out.println(md.hashCode());
+            byte[] myHashedContent = md.digest(myContent.getBytes(StandardCharsets.UTF_8));
 
             String fileInfo = fileEntry.getPath() + " " + myHashedContent;
 

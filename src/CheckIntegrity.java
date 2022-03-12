@@ -38,34 +38,39 @@ public class CheckIntegrity {
         for (File fileEntry : Objects.requireNonNull(folder.listFiles())) {
             Scanner myReader = new Scanner(fileEntry);
             String myContent = myReader.nextLine();
-            byte[] myHashedContent = MessageDigest.getInstance(hashType).digest(myContent.getBytes());
+            System.out.println(hashType);
+            MessageDigest md = MessageDigest.getInstance(hashType);
+            System.out.println(md.hashCode());
+            byte[] myHashedContent = md.digest(myContent.getBytes(StandardCharsets.UTF_8));
+
             fileBytes.put(fileEntry.getName(), myHashedContent);
         }
+
+
         String filePath;
         String contentHash;
         String[] lineSplitted;
         String[] pathSplitted;
         String fileName;
-        HashMap<String, byte[]> regFileBytes = new HashMap<>();
+        HashMap<String, String> regFileBytes = new HashMap<>();
         for (String l: fileContents) {
             lineSplitted = l.split(" ");
             filePath = lineSplitted[0];
             contentHash = lineSplitted[1];
-
             pathSplitted = filePath.split(Pattern.quote(File.separator));
             fileName = pathSplitted[pathSplitted.length - 1];
 
-            regFileBytes.put(fileName, contentHash.getBytes(StandardCharsets.UTF_8));
+            regFileBytes.put(fileName, contentHash);
         }
 
 
         for (String key: fileBytes.keySet()) {
-            System.out.println(key + " "+fileBytes.get(key));
+            System.out.println(key + " "+ fileBytes.get(key));
         }
 
         System.out.println("-----------------------");
         for (String key: regFileBytes.keySet()) {
-            System.out.println(key + " "+regFileBytes.get(key));
+            System.out.println(key + " "+ regFileBytes.get(key));
         }
     }
 
