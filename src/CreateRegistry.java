@@ -1,12 +1,11 @@
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.text.SimpleDateFormat;
@@ -14,7 +13,7 @@ import java.util.*;
 import java.sql.Timestamp;
 
 public class CreateRegistry {
-    public CreateRegistry(HashMap<String, String> arguments) throws NoSuchAlgorithmException, IOException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidKeySpecException, SignatureException {
+    public CreateRegistry(HashMap<String, String> arguments) throws NoSuchAlgorithmException, IOException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidKeySpecException, SignatureException, CertificateException {
 
         String regFilePath = arguments.get("registry");
         String path = arguments.get("path");
@@ -27,7 +26,7 @@ public class CreateRegistry {
         createRegFile(regFilePath, path, hash, privateKey, logFile);
     }
 
-    public void createRegFile(String regFilePath, String path, String hash, PrivateKey privateKey, String logFilePath) throws IOException, NoSuchAlgorithmException, SignatureException, InvalidKeyException {
+    public void createRegFile(String regFilePath, String path, String hash, PrivateKey privateKey, String logFilePath) throws IOException, NoSuchAlgorithmException, SignatureException, InvalidKeyException, CertificateException {
         SimpleDateFormat sdf1 = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
 
@@ -35,7 +34,7 @@ public class CreateRegistry {
         FileWriter logFile = new FileWriter(logFilePath);
         FileWriter regFile = new FileWriter(regFilePath);
         StringBuilder regFileContent = new StringBuilder();
-        logFile.write(sdf1.format(timestamp)+": Registry file is created at "+ path +"!\n");
+        logFile.write(sdf1.format(timestamp) + ": Registry file is created at " + path + "!\n");
         File folder = new File(path);
 
         int fileCounter = 0;
@@ -47,16 +46,16 @@ public class CreateRegistry {
             String fileInfo = fileEntry.getPath() + " " + myHashedContent;
 
             regFileContent.append(fileInfo);
-            regFile.write(fileEntry.getPath() + " " + myHashedContent + "\n");
+            regFile.write(fileInfo + "\n");
 
-            logFile.write(sdf1.format(timestamp)+": "+ fileEntry.getPath() +" is added to registry\n");
-            fileCounter+=1;
+            logFile.write(sdf1.format(timestamp) + ": " + fileEntry.getPath() + " is added to registry\n");
+            fileCounter += 1;
         }
         String regFileSignature = signature(regFileContent, hash, privateKey);
         regFileContent.append(regFileSignature);
         regFile.write(regFileSignature);
 
-        logFile.write(sdf1.format(timestamp)+": "+fileCounter+ " files are added to the registry and registry creation is finished!\n");
+        logFile.write(sdf1.format(timestamp) + ": " + fileCounter + " files are added to the registry and registry creation is finished!\n");
         regFile.close();
         logFile.close();
     }
@@ -115,15 +114,16 @@ public class CreateRegistry {
     }
 
     private String signature(StringBuilder registryContent, String hashType, PrivateKey privateKey)
-            throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, SignatureException {
-        //Specifying hash type
+            throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, SignatureException, CertificateException, FileNotFoundException, UnsupportedEncodingException {
         String hash = hashType.equals("SHA-256") ? "SHA256" : "MD5";
 
-        //Generating signature with the private key
+        byte[] data = registryContent.toString().getBytes(StandardCharsets.UTF_8);
+
         Signature signature = Signature.getInstance(hash + "withRSA");
         signature.initSign(privateKey);
-        signature.update(registryContent.toString().getBytes());
+        signature.update(data);
+        byte[] signatureBytes = signature.sign();
 
-        return Base64.getEncoder().encodeToString(signature.sign());
+        return Base64.getEncoder().encodeToString(signatureBytes);
     }
 }

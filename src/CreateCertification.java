@@ -101,7 +101,9 @@ public class CreateCertification {
             X500Name x500Name = new X500Name("CN=EMRE");
 
             PrivateKey privateKey = keypair.getPrivateKey();
-            System.out.println(Arrays.toString(privateKey.getEncoded()));
+//            System.out.println(Arrays.toString(privateKey.getEncoded()));
+
+//            System.out.println(Arrays.toString(keypair.getPublicKey().getEncoded()));
             X509Certificate[] chain = new X509Certificate[1];
             chain[0] = keypair.getSelfCertificate(x500Name, 35000 * 24L * 60L * 60L);
 
@@ -113,7 +115,6 @@ public class CreateCertification {
                 fout.close();
             }
         }
-
     }
 
     private void execute(String command) {
