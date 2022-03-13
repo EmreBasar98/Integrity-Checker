@@ -13,7 +13,9 @@ import java.util.*;
 import java.sql.Timestamp;
 
 public class CreateRegistry {
-    public CreateRegistry(HashMap<String, String> arguments) throws NoSuchAlgorithmException, IOException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidKeySpecException, SignatureException, CertificateException {
+    public CreateRegistry(HashMap<String, String> arguments) throws NoSuchAlgorithmException, IOException,
+            NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException,
+            InvalidKeySpecException, SignatureException, CertificateException {
 
         String regFilePath = arguments.get("registry");
         String path = arguments.get("path");
@@ -26,10 +28,11 @@ public class CreateRegistry {
         createRegFile(regFilePath, path, hash, privateKey, logFile);
     }
 
-    public void createRegFile(String regFilePath, String path, String hash, PrivateKey privateKey, String logFilePath) throws IOException, NoSuchAlgorithmException, SignatureException, InvalidKeyException, CertificateException {
+    public void createRegFile(String regFilePath, String path, String hash, PrivateKey privateKey, String logFilePath)
+            throws IOException, NoSuchAlgorithmException, SignatureException, InvalidKeyException,
+            CertificateException {
         SimpleDateFormat sdf1 = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-
 
         FileWriter logFile = new FileWriter(logFilePath);
         FileWriter regFile = new FileWriter(regFilePath);
@@ -40,9 +43,23 @@ public class CreateRegistry {
         int fileCounter = 0;
         for (File fileEntry : Objects.requireNonNull(folder.listFiles())) {
             Scanner myReader = new Scanner(fileEntry);
-            String myContent = myReader.nextLine();//Gerekirse Path klasörü otomatik oluşturulacak ve dosya içerikleri for ile okunacak
-
-            String myHashedContent = Base64.getEncoder().encodeToString(MessageDigest.getInstance(hash).digest(myContent.getBytes(StandardCharsets.UTF_8)));
+            String myContent = "";
+            // Gerekirse Path klasörü otomatik
+            // oluşturulacak ve dosya içerikleri
+            // for ile okunacak
+            ArrayList<String> myContentArray = new ArrayList<String>();
+            while (myReader.hasNext()) {
+                myContentArray.add(myReader.nextLine());
+            }
+            for (String line : myContentArray) {
+                if (myContentArray.indexOf(line) == 0) {
+                    myContent = line;
+                } else {
+                    myContent = myContent + " " + line;
+                }
+            }
+            String myHashedContent = Base64.getEncoder()
+                    .encodeToString(MessageDigest.getInstance(hash).digest(myContent.getBytes(StandardCharsets.UTF_8)));
 
             String fileInfo = fileEntry.getPath() + " " + myHashedContent;
 
@@ -56,16 +73,18 @@ public class CreateRegistry {
         regFileContent.append(regFileSignature);
         regFile.write(regFileSignature);
 
-        logFile.write(sdf1.format(timestamp) + ": " + fileCounter + " files are added to the registry and registry creation is finished!\n");
+        logFile.write(sdf1.format(timestamp) + ": " + fileCounter
+                + " files are added to the registry and registry creation is finished!\n");
         regFile.close();
         logFile.close();
     }
 
     public byte[] prepareUserPassword() throws NoSuchAlgorithmException {
+        System.out.println("prepareUserPssword");
         System.out.print("Enter a password: ");
         Scanner askForPassword = new Scanner(System.in);
         String password = askForPassword.nextLine();
-        askForPassword.close();
+        // askForPassword.close();
         String bitPW = convertToBinary(password);
         String paddedBitPW = stringPadding(bitPW);
         return MessageDigest.getInstance("MD5").digest(paddedBitPW.getBytes());
@@ -93,13 +112,20 @@ public class CreateRegistry {
         return s;
     }
 
-    public byte[] decryptPrivateKey(String priKey) throws FileNotFoundException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException {
+    public byte[] decryptPrivateKey(String priKey) throws FileNotFoundException, NoSuchAlgorithmException,
+            NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException {
         File file = new File(priKey);
         Scanner myReader = new Scanner(file);
         byte[] ciphertext = myReader.nextLine().getBytes(StandardCharsets.UTF_8);
         byte[] pw = prepareUserPassword();
         AES aes = new AES(pw);
-        byte[] plaintext = aes.decrypt(ciphertext);
+        byte[] plaintext;
+        try {
+            plaintext = aes.decrypt(ciphertext);
+        } catch (Exception e) {
+            System.out.println("Wrong Password");
+            plaintext = decryptPrivateKey(priKey);
+        }
         return plaintext;
     }
 
@@ -115,7 +141,8 @@ public class CreateRegistry {
     }
 
     private String signature(StringBuilder registryContent, String hashType, PrivateKey privateKey)
-            throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, SignatureException, CertificateException, FileNotFoundException, UnsupportedEncodingException {
+            throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, SignatureException,
+            CertificateException, FileNotFoundException, UnsupportedEncodingException {
         String hash = hashType.equals("SHA-256") ? "SHA256" : "MD5";
 
         byte[] data = registryContent.toString().getBytes(StandardCharsets.UTF_8);
