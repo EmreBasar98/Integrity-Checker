@@ -44,9 +44,7 @@ public class CreateRegistry {
         for (File fileEntry : Objects.requireNonNull(folder.listFiles())) {
             Scanner myReader = new Scanner(fileEntry);
             StringBuilder myContent = new StringBuilder();
-            // Gerekirse Path klasörü otomatik
-            // oluşturulacak ve dosya içerikleri
-            // for ile okunacak
+
             ArrayList<String> myContentArray = new ArrayList<String>();
             while (myReader.hasNext()) {
                 myContentArray.add(myReader.nextLine());
@@ -77,11 +75,10 @@ public class CreateRegistry {
     }
 
     public byte[] prepareUserPassword() throws NoSuchAlgorithmException {
-        System.out.println("prepareUserPssword");
         System.out.print("Enter a password: ");
         Scanner askForPassword = new Scanner(System.in);
         String password = askForPassword.nextLine();
-        // askForPassword.close();
+
         String bitPW = convertToBinary(password);
         String paddedBitPW = stringPadding(bitPW);
         return MessageDigest.getInstance("MD5").digest(paddedBitPW.getBytes());

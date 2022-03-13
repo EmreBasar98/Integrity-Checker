@@ -35,7 +35,6 @@ public class CheckIntegrity {
                 .generateCertificate(new FileInputStream(certificatePath)).getPublicKey();
 
         boolean verification = verifySignature(regContent, hashType, regFilePath, publicKey, signatureBytes);
-        System.out.println(verification);
         if (!verification) {
             System.out.println("[time_stamp]: Registry file verification failed!");
             logFile.write(sdf1.format(timestamp) + ": Registry file verification failed!\n");
@@ -44,12 +43,12 @@ public class CheckIntegrity {
 
         File folder = new File(path);
         HashMap<String, String> systemFiles = new HashMap<>();
+        HashMap<String, String> systemFilesPaths = new HashMap<>();
         for (File fileEntry : Objects.requireNonNull(folder.listFiles())) {
             Scanner myReader = new Scanner(fileEntry);
             StringBuilder myContent = new StringBuilder();
-            // Gerekirse Path klasörü otomatik
-            // oluşturulacak ve dosya içerikleri
-            // for ile okunacak
+
+            systemFilesPaths.put(fileEntry.getName(), fileEntry.getPath());
             ArrayList<String> myContentArray = new ArrayList<String>();
             while (myReader.hasNext()) {
                 myContentArray.add(myReader.nextLine());
@@ -67,28 +66,27 @@ public class CheckIntegrity {
         String[] lineSplitted;
         String[] pathSplitted;
         String fileName;
-        Boolean isFileChanged = false;
+        boolean isFileChanged = false;
         String seperator = Pattern.quote(File.separator);
         HashMap<String, String> regFiles = new HashMap<>();
-        HashMap<String, String> filesPaths = new HashMap<>();
+        HashMap<String, String> regFilesPaths = new HashMap<>();
         for (String l : fileContents) {
             lineSplitted = l.split(" ");
             filePath = lineSplitted[0];
             contentHash = lineSplitted[1];
             pathSplitted = filePath.split(seperator);
             fileName = pathSplitted[pathSplitted.length - 1];
-            filesPaths.put(fileName, filePath);
+            regFilesPaths.put(fileName, filePath);
             regFiles.put(fileName, contentHash);
         }
 
         for (String key : systemFiles.keySet()) {
             if (!regFiles.containsKey(key)) {
-                logFile.write(sdf1.format(timestamp) + ": " + filesPaths.get(key) + " is created\n");
-                System.out.println("yeni key" + key);
+                logFile.write(sdf1.format(timestamp) + ": " + systemFilesPaths.get(key) + " is created\n");
                 isFileChanged = true;
             } else {
                 if (!regFiles.get(key).equals(systemFiles.get(key))) {
-                    logFile.write(sdf1.format(timestamp) + ": " + filesPaths.get(key) + " is altered\n");
+                    logFile.write(sdf1.format(timestamp) + ": " + systemFilesPaths.get(key) + " is altered\n");
                     System.out.println("altered" + key);
                     isFileChanged = true;
                 }
@@ -97,7 +95,7 @@ public class CheckIntegrity {
 
         for (String key : regFiles.keySet()) {
             if (!systemFiles.containsKey(key)) {
-                logFile.write(sdf1.format(timestamp) + ": " + path + seperator + key + " is deleted\n");
+                logFile.write(sdf1.format(timestamp) + ": " + regFilesPaths.get(key) + " is deleted\n");
                 System.out.println("silinmiş key" + key);
                 isFileChanged = true;
             }
