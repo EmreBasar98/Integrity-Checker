@@ -58,25 +58,28 @@ public class CheckIntegrity {
         String[] pathSplitted;
         String fileName;
         Boolean isFileChanged = false;
+        String seperator = Pattern.quote(File.separator);
         HashMap<String, String> regFiles = new HashMap<>();
+        HashMap<String, String> filesPaths = new HashMap<>();
         for (String l : fileContents) {
             lineSplitted = l.split(" ");
             filePath = lineSplitted[0];
             contentHash = lineSplitted[1];
-            pathSplitted = filePath.split(Pattern.quote(File.separator));
+            pathSplitted = filePath.split(seperator);
             fileName = pathSplitted[pathSplitted.length - 1];
+            filesPaths.put(fileName, filePath);
             regFiles.put(fileName, contentHash);
         }
 
         for (String key : systemFiles.keySet()) {
             if (!regFiles.containsKey(key)) {
-                logFile.write(sdf1.format(timestamp) + ": " + path + key + "is created\n");
+                logFile.write(sdf1.format(timestamp) + ": " + filesPaths.get(key) + " is created\n");
                 System.out.println("yeni key" + key);
+                isFileChanged = true;
             } else {
                 if (!regFiles.get(key).equals(systemFiles.get(key))) {
-                    logFile.write(sdf1.format(timestamp) + ": " + path + key + "is altered\n");
+                    logFile.write(sdf1.format(timestamp) + ": " + filesPaths.get(key) + " is altered\n");
                     System.out.println("altered" + key);
-                } else {
                     isFileChanged = true;
                 }
             }
@@ -84,15 +87,15 @@ public class CheckIntegrity {
 
         for (String key : regFiles.keySet()) {
             if (!systemFiles.containsKey(key)) {
-                logFile.write(sdf1.format(timestamp) + ": " + path + key + "is deleted\n");
+                logFile.write(sdf1.format(timestamp) + ": " + path + seperator + key + " is deleted\n");
                 System.out.println("silinmiş key" + key);
+                isFileChanged = true;
             }
         }
 
-        if (isFileChanged) {
+        if (!isFileChanged) {
             System.out.println("no change");
             logFile.write(sdf1.format(timestamp) + ": The directory is checked and no change is detected!\n");
-
         }
         logFile.close();
 
