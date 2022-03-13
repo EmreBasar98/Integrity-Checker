@@ -43,7 +43,7 @@ public class CreateRegistry {
         int fileCounter = 0;
         for (File fileEntry : Objects.requireNonNull(folder.listFiles())) {
             Scanner myReader = new Scanner(fileEntry);
-            String myContent = "";
+            StringBuilder myContent = new StringBuilder();
             // Gerekirse Path klasörü otomatik
             // oluşturulacak ve dosya içerikleri
             // for ile okunacak
@@ -52,14 +52,11 @@ public class CreateRegistry {
                 myContentArray.add(myReader.nextLine());
             }
             for (String line : myContentArray) {
-                if (myContentArray.indexOf(line) == 0) {
-                    myContent = line;
-                } else {
-                    myContent = myContent + " " + line;
-                }
+                myContent.append(line);
             }
             String myHashedContent = Base64.getEncoder()
-                    .encodeToString(MessageDigest.getInstance(hash).digest(myContent.getBytes(StandardCharsets.UTF_8)));
+                    .encodeToString(MessageDigest.getInstance(hash)
+                            .digest(myContent.toString().getBytes(StandardCharsets.UTF_8)));
 
             String fileInfo = fileEntry.getPath() + " " + myHashedContent;
 

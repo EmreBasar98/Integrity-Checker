@@ -46,9 +46,19 @@ public class CheckIntegrity {
         HashMap<String, String> systemFiles = new HashMap<>();
         for (File fileEntry : Objects.requireNonNull(folder.listFiles())) {
             Scanner myReader = new Scanner(fileEntry);
-            String myContent = myReader.nextLine();
+            StringBuilder myContent = new StringBuilder();
+            // Gerekirse Path klasörü otomatik
+            // oluşturulacak ve dosya içerikleri
+            // for ile okunacak
+            ArrayList<String> myContentArray = new ArrayList<String>();
+            while (myReader.hasNext()) {
+                myContentArray.add(myReader.nextLine());
+            }
+            for (String line : myContentArray) {
+                myContent.append(line);
+            }
             String myHashedContent = Base64.getEncoder().encodeToString(
-                    MessageDigest.getInstance(hashType).digest(myContent.getBytes(StandardCharsets.UTF_8)));
+                    MessageDigest.getInstance(hashType).digest(myContent.toString().getBytes(StandardCharsets.UTF_8)));
             systemFiles.put(fileEntry.getName(), myHashedContent);
         }
 
