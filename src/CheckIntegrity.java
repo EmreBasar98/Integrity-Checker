@@ -21,6 +21,7 @@ public class CheckIntegrity {
         String logFilePath = arguments.get("log");
         String hashType = arguments.get("hash");
         String certificatePath = arguments.get("cert");
+
         ArrayList<String> fileContents = new ArrayList<>();
         String[] ret = getRegContentAndSignature(regFilePath, fileContents);
         String regContent = ret[0];
@@ -36,7 +37,6 @@ public class CheckIntegrity {
 
         boolean verification = verifySignature(regContent, hashType, regFilePath, publicKey, signatureBytes);
         if (!verification) {
-            System.out.println("[time_stamp]: Registry file verification failed!");
             logFile.write(sdf1.format(timestamp) + ": Registry file verification failed!\n");
             System.exit(1);
         }
@@ -79,34 +79,8 @@ public class CheckIntegrity {
             regFilesPaths.put(fileName, filePath);
             regFiles.put(fileName, contentHash);
         }
-
-        for (String key : systemFiles.keySet()) {
-            if (!regFiles.containsKey(key)) {
-                logFile.write(sdf1.format(timestamp) + ": " + systemFilesPaths.get(key) + " is created\n");
-                isFileChanged = true;
-            } else {
-                if (!regFiles.get(key).equals(systemFiles.get(key))) {
-                    logFile.write(sdf1.format(timestamp) + ": " + systemFilesPaths.get(key) + " is altered\n");
-                    System.out.println("altered" + key);
-                    isFileChanged = true;
-                }
-            }
-        }
-
-        for (String key : regFiles.keySet()) {
-            if (!systemFiles.containsKey(key)) {
-                logFile.write(sdf1.format(timestamp) + ": " + regFilesPaths.get(key) + " is deleted\n");
-                System.out.println("silinmiş key" + key);
-                isFileChanged = true;
-            }
-        }
-
-        if (!isFileChanged) {
-            System.out.println("no change");
-            logFile.write(sdf1.format(timestamp) + ": The directory is checked and no change is detected!\n");
-        }
+        logFileChanges(systemFiles, regFiles, logFile, regFilesPaths, sdf1, isFileChanged, timestamp, systemFilesPaths);
         logFile.close();
-
     }
 
     private String[] getRegContentAndSignature(String regFilePath, ArrayList<String> fileContents)
@@ -141,5 +115,31 @@ public class CheckIntegrity {
         signature.update(String.valueOf(registryContent).getBytes());
 
         return signature.verify(signatureBytes);
+    }
+
+    private void logFileChanges(HashMap<String, String> systemFiles, HashMap<String, String> regFiles, FileWriter logFile,HashMap<String, String> regFilesPaths,
+                                SimpleDateFormat sdf1, boolean isFileChanged, Timestamp timestamp, HashMap<String, String> systemFilesPaths) throws IOException {
+        for (String key : systemFiles.keySet()) {
+            if (!regFiles.containsKey(key)) {
+                logFile.write(sdf1.format(timestamp) + ": " + systemFilesPaths.get(key) + " is created\n");
+                isFileChanged = true;
+            } else {
+                if (!regFiles.get(key).equals(systemFiles.get(key))) {
+                    logFile.write(sdf1.format(timestamp) + ": " + systemFilesPaths.get(key) + " is altered\n");
+                    isFileChanged = true;
+                }
+            }
+        }
+
+        for (String key : regFiles.keySet()) {
+            if (!systemFiles.containsKey(key)) {
+                logFile.write(sdf1.format(timestamp) + ": " + regFilesPaths.get(key) + " is deleted\n");
+                isFileChanged = true;
+            }
+        }
+
+        if (!isFileChanged) {
+            logFile.write(sdf1.format(timestamp) + ": The directory is checked and no change is detected!\n");
+        }
     }
 }

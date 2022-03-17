@@ -11,6 +11,7 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.sql.Timestamp;
+import java.util.regex.Pattern;
 
 public class CreateRegistry {
     public CreateRegistry(HashMap<String, String> arguments) throws NoSuchAlgorithmException, IOException,
@@ -33,7 +34,8 @@ public class CreateRegistry {
             CertificateException {
         SimpleDateFormat sdf1 = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-
+        HelperMethods.createFile(regFilePath);
+        HelperMethods.createFile(logFilePath);
         FileWriter logFile = new FileWriter(logFilePath);
         FileWriter regFile = new FileWriter(regFilePath);
         StringBuilder regFileContent = new StringBuilder();
@@ -74,44 +76,12 @@ public class CreateRegistry {
         logFile.close();
     }
 
-    public byte[] prepareUserPassword() throws NoSuchAlgorithmException {
-        System.out.print("Enter a password: ");
-        Scanner askForPassword = new Scanner(System.in);
-        String password = askForPassword.nextLine();
-
-        String bitPW = convertToBinary(password);
-        String paddedBitPW = stringPadding(bitPW);
-        return MessageDigest.getInstance("MD5").digest(paddedBitPW.getBytes());
-    }
-
-    public String convertToBinary(String s) {
-        byte[] bytes = s.getBytes();
-        StringBuilder binary = new StringBuilder();
-        for (byte b : bytes) {
-            int val = b;
-            for (int i = 0; i < 8; i++) {
-                binary.append((val & 128) == 0 ? 0 : 1);
-                val <<= 1;
-            }
-        }
-        return binary.toString();
-    }
-
-    public String stringPadding(String s) {
-        StringBuilder sBuilder = new StringBuilder(s);
-        while (sBuilder.length() < 512) {
-            sBuilder.append("01");
-        }
-        s = sBuilder.toString();
-        return s;
-    }
-
-    public byte[] decryptPrivateKey(String priKey) throws FileNotFoundException, NoSuchAlgorithmException,
+    public byte[] decryptPrivateKey(String priKey) throws IOException, NoSuchAlgorithmException,
             NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException {
         File file = new File(priKey);
         Scanner myReader = new Scanner(file);
         byte[] ciphertext = myReader.nextLine().getBytes(StandardCharsets.UTF_8);
-        byte[] pw = prepareUserPassword();
+        byte[] pw = HelperMethods.prepareUserPassword();
         AES aes = new AES(pw);
         byte[] plaintext;
         try {
@@ -148,4 +118,5 @@ public class CreateRegistry {
 
         return Base64.getEncoder().encodeToString(signatureBytes);
     }
+
 }

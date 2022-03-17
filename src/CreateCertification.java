@@ -14,45 +14,14 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Scanner;
+import java.util.StringJoiner;
+import java.util.regex.Pattern;
 
 public class CreateCertification {
     public CreateCertification(HashMap<String, String> arguments) throws NoSuchAlgorithmException, UnrecoverableKeyException, CertificateException, IOException, KeyStoreException, InvalidKeyException, IllegalBlockSizeException, NoSuchPaddingException, BadPaddingException, SignatureException, NoSuchProviderException {
         String certificatePath = arguments.get("cert");
         String prikeyPath = arguments.get("private");
         createAndStore(certificatePath, prikeyPath);
-
-    }
-
-    public String convertToBinary(String s) {
-        byte[] bytes = s.getBytes();
-        StringBuilder binary = new StringBuilder();
-        for (byte b : bytes) {
-            int val = b;
-            for (int i = 0; i < 8; i++) {
-                binary.append((val & 128) == 0 ? 0 : 1);
-                val <<= 1;
-            }
-        }
-        return binary.toString();
-    }
-
-    public String stringPadding(String s) {
-        StringBuilder sBuilder = new StringBuilder(s);
-        while (sBuilder.length() < 512) {
-            sBuilder.append("01");
-        }
-        s = sBuilder.toString();
-        return s;
-    }
-
-    public byte[] prepareUserPassword() throws NoSuchAlgorithmException {
-        System.out.print("Enter a password: ");
-        Scanner askForPassword = new Scanner(System.in);
-        String password = askForPassword.nextLine();
-        askForPassword.close();
-        String bitPW = convertToBinary(password);
-        String paddedBitPW = stringPadding(bitPW);
-        return MessageDigest.getInstance("MD5").digest(paddedBitPW.getBytes());
     }
 
     public void createAndStore(String certificatePath, String prikeyPath) throws IOException, NoSuchAlgorithmException, IllegalBlockSizeException, NoSuchPaddingException, BadPaddingException, InvalidKeyException, KeyStoreException, CertificateException, SignatureException, NoSuchProviderException {
@@ -74,10 +43,10 @@ public class CreateCertification {
         System.arraycopy(privateKeyInfo, 0, plaintext, 0, privateKeyInfo.length);
         System.arraycopy(additional, 0, plaintext, privateKeyInfo.length, additional.length);
 
-        byte[] passBytes = prepareUserPassword();
+        byte[] passBytes = HelperMethods.prepareUserPassword();
 
         AES aes = new AES(passBytes);
-
+        HelperMethods.createFile(prikeyPath);
         FileWriter prikeyFile = new FileWriter(prikeyPath);
         prikeyFile.write(new String(aes.encrypt(plaintext)));
         prikeyFile.close();
@@ -101,9 +70,7 @@ public class CreateCertification {
             X500Name x500Name = new X500Name("CN=EMRE");
 
             PrivateKey privateKey = keypair.getPrivateKey();
-//            System.out.println(Arrays.toString(privateKey.getEncoded()));
 
-//            System.out.println(Arrays.toString(keypair.getPublicKey().getEncoded()));
             X509Certificate[] chain = new X509Certificate[1];
             chain[0] = keypair.getSelfCertificate(x500Name, 35000 * 24L * 60L * 60L);
 
@@ -127,6 +94,7 @@ public class CreateCertification {
     }
 
     private void generateCertificate(String certificatePath) throws IOException {
+        HelperMethods.createFile(certificatePath);
         //Generating a Certificate Signing Request
         execute(" -certreq" +
                 " -alias keypair" +
