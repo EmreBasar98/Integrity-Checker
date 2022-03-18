@@ -22,25 +22,28 @@ public class CheckIntegrity {
         String hashType = arguments.get("hash");
         String certificatePath = arguments.get("cert");
 
+        //Loading the registry file content and signature
         ArrayList<String> fileContents = new ArrayList<>();
         String[] ret = getRegContentAndSignature(regFilePath, fileContents);
         String regContent = ret[0];
         String lastLine = ret[1];
+        byte[] signatureBytes = Base64.getDecoder().decode(lastLine);
 
         SimpleDateFormat sdf1 = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
         FileWriter logFile = new FileWriter(logFilePath, true);
 
-        byte[] signatureBytes = Base64.getDecoder().decode(lastLine);
+        //Loading the publickey from certificate
         PublicKey publicKey = CertificateFactory.getInstance("X.509")
                 .generateCertificate(new FileInputStream(certificatePath)).getPublicKey();
 
+        //Verification of the regFile signature
         boolean verification = verifySignature(regContent, hashType, regFilePath, publicKey, signatureBytes);
         if (!verification) {
             logFile.write(sdf1.format(timestamp) + ": Registry file verification failed!\n");
             System.exit(1);
         }
-
+        //Loading the monitored path file contents  and hashing the contents to be compared with reg file hashes.
         File folder = new File(path);
         HashMap<String, String> systemFiles = new HashMap<>();
         HashMap<String, String> systemFilesPaths = new HashMap<>();
@@ -60,7 +63,7 @@ public class CheckIntegrity {
                     MessageDigest.getInstance(hashType).digest(myContent.toString().getBytes(StandardCharsets.UTF_8)));
             systemFiles.put(fileEntry.getName(), myHashedContent);
         }
-
+        //Adjusting the reg File content to be compared with current file contents.
         String filePath;
         String contentHash;
         String[] lineSplitted;
@@ -79,12 +82,14 @@ public class CheckIntegrity {
             regFilesPaths.put(fileName, filePath);
             regFiles.put(fileName, contentHash);
         }
+        //comparison and logging
         logFileChanges(systemFiles, regFiles, logFile, regFilesPaths, sdf1, isFileChanged, timestamp, systemFilesPaths);
         logFile.close();
     }
 
     private String[] getRegContentAndSignature(String regFilePath, ArrayList<String> fileContents)
             throws FileNotFoundException {
+        //Load reg content and signature from file
         File file = new File(regFilePath);
         Scanner myReader = new Scanner(file);
         String lastLine = null;
@@ -108,6 +113,7 @@ public class CheckIntegrity {
 
     private boolean verifySignature(String registryContent, String hashType, String registryPath, PublicKey publicKey,
             byte[] signatureBytes) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        //verify the reg file signature using public key
         String hash = hashType.equals("SHA-256") ? "SHA256" : "MD5";
 
         Signature signature = Signature.getInstance(hash + "withRSA");
@@ -119,6 +125,7 @@ public class CheckIntegrity {
 
     private void logFileChanges(HashMap<String, String> systemFiles, HashMap<String, String> regFiles, FileWriter logFile,HashMap<String, String> regFilesPaths,
                                 SimpleDateFormat sdf1, boolean isFileChanged, Timestamp timestamp, HashMap<String, String> systemFilesPaths) throws IOException {
+        //comparing hash values of the file contents and according to that log the status.
         for (String key : systemFiles.keySet()) {
             if (!regFiles.containsKey(key)) {
                 logFile.write(sdf1.format(timestamp) + ": " + systemFilesPaths.get(key) + " is created\n");

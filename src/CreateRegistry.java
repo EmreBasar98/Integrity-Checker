@@ -32,6 +32,8 @@ public class CreateRegistry {
     public void createRegFile(String regFilePath, String path, String hash, PrivateKey privateKey, String logFilePath)
             throws IOException, NoSuchAlgorithmException, SignatureException, InvalidKeyException,
             CertificateException {
+
+        // Creation of registry file according to the given path for monitoring
         SimpleDateFormat sdf1 = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
         HelperMethods.createFile(regFilePath);
@@ -42,6 +44,7 @@ public class CreateRegistry {
         logFile.write(sdf1.format(timestamp) + ": Registry file is created at " + path + "!\n");
         File folder = new File(path);
 
+        //Reading the files and storing them in regFile with hashed content
         int fileCounter = 0;
         for (File fileEntry : Objects.requireNonNull(folder.listFiles())) {
             Scanner myReader = new Scanner(fileEntry);
@@ -62,14 +65,14 @@ public class CreateRegistry {
 
             regFileContent.append(fileInfo);
             regFile.write(fileInfo + "\n");
-
+            //Logging the file
             logFile.write(sdf1.format(timestamp) + ": " + fileEntry.getPath() + " is added to registry\n");
             fileCounter += 1;
         }
         String regFileSignature = signature(regFileContent, hash, privateKey);
         regFileContent.append(regFileSignature);
         regFile.write(regFileSignature);
-
+        //Final logging about the reg file
         logFile.write(sdf1.format(timestamp) + ": " + fileCounter
                 + " files are added to the registry and registry creation is finished!\n");
         regFile.close();
@@ -78,6 +81,7 @@ public class CreateRegistry {
 
     public byte[] decryptPrivateKey(String priKey) throws IOException, NoSuchAlgorithmException,
             NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException {
+        //Loading the privatekey bytes from the file
         File file = new File(priKey);
         Scanner myReader = new Scanner(file);
         byte[] ciphertext = myReader.nextLine().getBytes(StandardCharsets.UTF_8);
@@ -94,6 +98,7 @@ public class CreateRegistry {
     }
 
     public PrivateKey getPrivateKey(byte[] plaintext) throws NoSuchAlgorithmException, InvalidKeySpecException {
+        //getting the private key from given byte array
         byte[] additional = "This is private key file".getBytes();
         int privKeyLen = plaintext.length - additional.length;
         byte[] privateKeyInfo = Arrays.copyOfRange(plaintext, 0, privKeyLen);

@@ -14,7 +14,9 @@ class ichecker {
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException, UnrecoverableKeyException, CertificateException, KeyStoreException, InvalidKeyException, IllegalBlockSizeException, NoSuchPaddingException, BadPaddingException, SignatureException, NoSuchProviderException, InvalidKeySpecException {
         Iterator<String> iterator = Arrays.stream(args).iterator();
         String operation = iterator.next();
+        HelperMethods helperMethods = new HelperMethods(); //calling helper class so it is compiled
 
+        //parsing the arguments according to the flags.
         HashMap<String,String> arguments = new HashMap<>();
         while (iterator.hasNext()) {
             switch (iterator.next()) {
@@ -27,6 +29,7 @@ class ichecker {
             }
         }
 
+        //according to the operation call necessary class.
         switch (operation){
             case "createCert": new CreateCertification(arguments);break;
             case "createReg":  new CreateRegistry(arguments);break;
